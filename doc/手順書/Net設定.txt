@@ -1,0 +1,14 @@
+https://docs.aws.amazon.com/ja_jp/vpc/latest/userguide/vpc-getting-started.html
+
+１．VPCの作成
+※IPv4 CIDRは「10.0.0.0/16」の「16」以上を設定する。
+
+２．サブネットの作成
+※IPv4 CIDRは「10.0.0.0/16」の「16」以上を設定する。
+
+３．インターネットゲートウェイの作成
+※VPCにアタッチ
+
+４．ルートテーブルの設定
+※インターネットゲートウェイの設定を追加する
+

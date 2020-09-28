@@ -1,0 +1,255 @@
+https://docs.aws.amazon.com/ja_jp/vpc/latest/userguide/VPC_Subnets.html
+
+# vpcs確認
+https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/describe-vpcs.html
+aws ec2 describe-vpcs
+Output:
+{
+    "Vpcs": [
+        {
+            "CidrBlock": "172.31.0.0/16",
+            "DhcpOptionsId": "dopt-db787cbc",
+            "State": "available",
+            "VpcId": "vpc-be7e60d9",
+            "OwnerId": "193392169482",
+            "InstanceTenancy": "default",
+            "CidrBlockAssociationSet": [
+                {
+                    "AssociationId": "vpc-cidr-assoc-eec0db86",
+                    "CidrBlock": "172.31.0.0/16",
+                    "CidrBlockState": {
+                        "State": "associated"
+                    }
+                }
+            ],
+            "IsDefault": true,
+            "Tags": [
+                {
+                    "Key": "Name",
+                    "Value": "default-vpc"
+                }
+            ]
+        }
+    ]
+}
+
+# vpc作成
+https://awscli.amazonaws.com/v2/documentation/api/latest/reference/ec2/create-vpc.html
+aws ec2 create-vpc --cidr-block 10.0.0.0/16 --tag-specifications "ResourceType=vpc,Tags=[{Key=Name,Value=cps-vpc-01}]"
+Output:
+{
+    "Vpc": {
+        "CidrBlock": "10.0.0.0/16",
+        "DhcpOptionsId": "dopt-db787cbc",
+        "State": "pending",
+        "VpcId": "vpc-04bdaf2b1092c5435",
+        "OwnerId": "193392169482",
+        "InstanceTenancy": "default",
+        "Ipv6CidrBlockAssociationSet": [],
+        "CidrBlockAssociationSet": [
+            {
+                "AssociationId": "vpc-cidr-assoc-0d3db52875c7b8959",
+                "CidrBlock": "10.0.0.0/16",
+                "CidrBlockState": {
+                    "State": "associated"
+                }
+            }
+        ],
+        "IsDefault": false,
+        "Tags": [
+            {
+                "Key": "Name",
+                "Value": "cps-vpc-01"
+            }
+        ]
+    }
+}
+# vpc削除
+aws ec2 delete-vpc --vpc-id vpc-04bdaf2b1092c5435
+
+# subnet作成
+aws ec2 describe-availability-zones
+Output:
+{
+    "AvailabilityZones": [
+        {
+            "State": "available",
+            "OptInStatus": "opt-in-not-required",
+            "Messages": [],
+            "RegionName": "ap-northeast-1",
+            "ZoneName": "ap-northeast-1a",
+            "ZoneId": "apne1-az4",
+            "GroupName": "ap-northeast-1",
+            "NetworkBorderGroup": "ap-northeast-1",
+            "ZoneType": "availability-zone"
+        },
+        {
+            "State": "available",
+            "OptInStatus": "opt-in-not-required",
+            "Messages": [],
+            "RegionName": "ap-northeast-1",
+            "ZoneName": "ap-northeast-1c",
+            "ZoneId": "apne1-az1",
+            "GroupName": "ap-northeast-1",
+            "NetworkBorderGroup": "ap-northeast-1",
+            "ZoneType": "availability-zone"
+        },
+        {
+            "State": "available",
+            "OptInStatus": "opt-in-not-required",
+            "Messages": [],
+            "RegionName": "ap-northeast-1",
+            "ZoneName": "ap-northeast-1d",
+            "ZoneId": "apne1-az2",
+            "GroupName": "ap-northeast-1",
+            "NetworkBorderGroup": "ap-northeast-1",
+            "ZoneType": "availability-zone"
+        }
+    ]
+}
+https://docs.aws.amazon.com/cli/latest/reference/ec2/create-subnet.html
+aws ec2 create-subnet --availability-zone ap-northeast-1a --cidr-block 10.1.2.0/24 --vpc-id vpc-04bdaf2b1092c5435
+aws ec2 create-subnet --availability-zone ap-northeast-1c --cidr-block 10.1.3.0/24 --vpc-id vpc-04bdaf2b1092c5435
+
+aws ec2 create-subnet --vpc-id vpc-04bdaf2b1092c5435 --cidr-block 10.0.1.0/24 --tag-specifications "ResourceType=subnet,Tags=[{Key=Name,Value=cps-subnet-01}]"
+Output:
+{
+    "Subnet": {
+        "AvailabilityZone": "ap-northeast-1d",
+        "AvailabilityZoneId": "apne1-az2",
+        "AvailableIpAddressCount": 251,
+        "CidrBlock": "10.0.1.0/24",
+        "DefaultForAz": false,
+        "MapPublicIpOnLaunch": false,
+        "State": "available",
+        "SubnetId": "subnet-03201909e0fd03e9a",
+        "VpcId": "vpc-04bdaf2b1092c5435",
+        "OwnerId": "193392169482",
+        "AssignIpv6AddressOnCreation": false,
+        "Ipv6CidrBlockAssociationSet": [],
+        "Tags": [
+            {
+                "Key": "Name",
+                "Value": "cps-subnet-01"
+            }
+        ],
+        "SubnetArn": "arn:aws:ec2:ap-northeast-1:193392169482:subnet/subnet-03201909e0fd03e9a"
+    }
+}
+# subnet削除
+aws ec2 delete-subnet --subnet-id subnet-03201909e0fd03e9a
+
+# Internet gateways作成
+https://docs.aws.amazon.com/cli/latest/reference/ec2/create-internet-gateway.html
+aws ec2 create-internet-gateway --tag-specifications "ResourceType=internet-gateway,Tags=[{Key=Name,Value=cps-igw-01}]"
+Output:
+{
+    "InternetGateway": {
+        "Attachments": [],
+        "InternetGatewayId": "igw-04876a3134fe7ca53",
+        "OwnerId": "193392169482",
+        "Tags": [
+            {
+                "Key": "Name",
+                "Value": "cps-igw-01"
+            }
+        ]
+    }
+}
+# Internet gateways削除
+aws ec2 delete-internet-gateway --internet-gateway-id igw-04876a3134fe7ca53
+
+https://docs.aws.amazon.com/ja_jp/cli/latest/reference/ec2/attach-internet-gateway.html
+aws ec2 attach-internet-gateway --internet-gateway-id igw-04876a3134fe7ca53 --vpc-id vpc-04bdaf2b1092c5435
+Output:
+None
+
+https://docs.aws.amazon.com/ja_jp/vpc/latest/userguide/WorkWithRouteTables.html
+
+#VPCを作成したときに自動的にルートテーブルも作成されていますが、分かりにくくなるのでここでも名前をつけておきます。
+#まずは作成したVPCに割り当てられているルートテーブルIDを取得します。
+aws ec2 describe-route-tables --filter Name=vpc-id,Values=vpc-04bdaf2b1092c5435
+Output:
+{
+    "RouteTables": [
+        {
+            "Associations": [
+                {
+                    "Main": true,
+                    "RouteTableAssociationId": "rtbassoc-01516b4edf3a1356e",
+                    "RouteTableId": "rtb-0dfa8306a1a2048f5",
+                    "AssociationState": {
+                        "State": "associated"
+                    }
+                }
+            ],
+            "PropagatingVgws": [],
+            "RouteTableId": "rtb-0dfa8306a1a2048f5",
+            "Routes": [
+                {
+                    "DestinationCidrBlock": "10.0.0.0/16",
+                    "GatewayId": "local",
+                    "Origin": "CreateRouteTable",
+                    "State": "active"
+                }
+            ],
+            "Tags": [],
+            "VpcId": "vpc-04bdaf2b1092c5435",
+            "OwnerId": "193392169482"
+        }
+    ]
+}
+
+#次のコマンドでタグNameを割り当てます。
+aws ec2 create-tags --resources rtb-0dfa8306a1a2048f5 --tags Key=Name,Value=cps-rtb-01
+
+#次にルートテーブルにインターネットへ抜けていく経路を追加します。
+https://docs.aws.amazon.com/cli/latest/reference/ec2/create-route.html
+aws ec2 create-route --route-table-id rtb-0dfa8306a1a2048f5 --destination-cidr-block 0.0.0.0/0 --gateway-id igw-04876a3134fe7ca53
+Output:
+{
+    "Return": true
+}
+
+aws ec2 describe-route-tables --filter Name=vpc-id,Values=vpc-04bdaf2b1092c5435
+Output:
+{
+    "RouteTables": [
+        {
+            "Associations": [
+                {
+                    "Main": true,
+                    "RouteTableAssociationId": "rtbassoc-01516b4edf3a1356e",
+                    "RouteTableId": "rtb-0dfa8306a1a2048f5",
+                    "AssociationState": {
+                        "State": "associated"
+                    }
+                }
+            ],
+            "PropagatingVgws": [],
+            "RouteTableId": "rtb-0dfa8306a1a2048f5",
+            "Routes": [
+                {
+                    "DestinationCidrBlock": "10.0.0.0/16",
+                    "GatewayId": "local",
+                    "Origin": "CreateRouteTable",
+                    "State": "active"
+                },
+                {
+                    "DestinationCidrBlock": "0.0.0.0/0",
+                    "GatewayId": "igw-04876a3134fe7ca53",
+                    "Origin": "CreateRoute",
+                    "State": "active"
+                }
+            ],
+            "Tags": [
+                {
+                    "Key": "Name",
+                    "Value": "cps-rtb-01"
+                }
+            ],
+            "VpcId": "vpc-04bdaf2b1092c5435",
+            "OwnerId": "193392169482"
+        }
+    ]
+}

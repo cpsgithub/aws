@@ -1,0 +1,27 @@
+https://docs.aws.amazon.com/ja_jp/cli/latest/userguide/cli-configure-profiles.html
+
+WS CLI では、config ファイルおよび credentials ファイルに保存された複数の名前付きプロファイルのいずれかを使用することができます。
+追加のプロファイルを設定するには、--profile オプションで aws configure を使用するか、config ファイルと credentials ファイルにエントリを追加します。
+
+2 つのプロファイルのある credentials ファイルの例を以下に示します。1 つ目 [default] は CLI コマンドをプロファイルなしで実行するときに使用します。
+2 つ目は CLI コマンドに --profile user1 パラメータを指定して実行するときに使用します。
+
+~/.aws/credentials (Linux & Mac) または %USERPROFILE%\.aws\credentials (Windows)
+
+[default]
+aws_access_key_id = ?????
+aws_secret_access_key = ??????
+
+※IAMでユーザーを追加する。
+User name,Password,Access key ID,Secret access key,Console login link
+user,?????,?????,???????,https://?????.signin.aws.amazon.com/console
+
+各プロファイルは異なる認証情報 (異なる IAM ユーザーのもの) を指定できます。また、別の AWS リージョンおよび出力形式を指定することもできます。
+
+~/.aws/config (Linux & Mac) または %USERPROFILE%\.aws\config (Windows)
+
+[default]
+region = ap-northeast-1
+output = json
+
+※日本東京：ap-northeast-1
