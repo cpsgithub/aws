@@ -1,0 +1,113 @@
+=================
+SSHのパスワード認証有効化とパスワードの設定
+sudo sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+sudo /etc/init.d/ssh restart
+sudo passwd ubuntu
+
+=================
+パッケージ最新化
+sudo apt-get update 
+sudo apt-get -y upgrade
+
+=================
+To install the tasksel manager utility:
+sudo apt-get install tasksel
+
+=================
+swap
+1.Turn off all swap processes
+sudo swapoff -a
+
+2.Resize the swap
+sudo dd if=/dev/zero of=/swapfile bs=1G count=1
+if = input file
+of = output file
+bs = block size
+count = multiplier of blocks
+sudo dd if=/dev/zero of=/swapfile bs=1M count=900
+
+3.Make the file usable as swap
+sudo mkswap /swapfile
+sudo chmod 600 /swapfile
+
+4.Activate the swap file
+sudo swapon /swapfile
+
+5.Check the amount of swap available
+grep SwapTotal /proc/meminfo
+
+=================
+GUI
+https://phoenixnap.com/kb/how-to-install-a-gui-on-ubuntu
+
+lxde
+sudo apt-get install lxde -y
+
+XXXX===================
+default
+sudo apt-get install ubuntu-desktop
+
+sudo service display_manager start
+sudo service display_manager stop
+
+To install SLiM:
+sudo apt-get install slim
+
+To install LightDM:
+sudo apt-get install lightdm
+
+To install KDE Plasma, use the following Linux command:
+sudo apt-get install kde-plasma-desktop
+
+Mate is a popular and lightweight graphical interface. Install it by executing the following command:
+sudo tasksel install ubuntu-mate-core
+
+Lubuntu Core Server Desktop
+sudo tasksel install lubuntu-core
+
+Xfce Desktop
+sudo apt-get install -y xfce4
+sudo apt-get install -y xfce4-goodies
+
+echo xfce4-session > ~/.xsession
+sudo cp /home/ubuntu/.xsession /etc/skel
+XXXX===================
+
+=================
+# Install new packages
+sudo apt-get install xrdp
+
+# new_cursorsを無効化します。
+sudo sed -e 's/^new_cursors=true/new_cursors=false/g' -i /etc/xrdp/xrdp.ini
+
+# Add xrdp user to ssl-cert group and reboot
+sudo adduser xrdp ssl-cert
+sudo systemctl enable xrdp
+sudo systemctl restart xrdp
+sudo reboot
+
+=================
+
+日本語パッケージの構築とロケールの設定
+sudo apt install language-pack-ja-base language-pack-ja
+sudo localectl set-locale LANG=ja_JP.UTF-8 LANGUAGE="ja_JP:ja"
+
+apt-cache search language-pack
+
+sudo apt-get install language-pack-zh-hans language-pack-zh-hans-base language-pack-gnome-zh-hans language-pack-gnome-zh-hans-base
+sudo localectl set-locale LANG=zh_CN.UTF-8
+
+日本語入力システムのインストール
+sudo apt install ibus-mozc
+
+キーボード設定
+sudo dpkg-reconfigure keyboard-configuration
+
+xrdp日本語配列のキーマップの修正
+
+cd /etc/xrdp
+sudo wget http://www.mail-archive.com/xrdp-devel@lists.sourceforge.net/msg00263/km-e0010411.ini
+sudo mv km-e0010411.ini km-0411.ini
+sudo ln -s km-0411.ini km-e0010411.ini
+sudo ln -s km-0411.ini km-e0200411.ini
+sudo ln -s km-0411.ini km-e0210411.ini
