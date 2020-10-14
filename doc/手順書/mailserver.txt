@@ -1,2 +1,409 @@
-https://www.rosehosting.com/blog/how-to-install-a-mail-server-with-postfixadmin-on-ubuntu-20-04/
+https://www.server-world.info/query?os=Ubuntu_20.04&p=mail&f=1
+
+===================================================
+Postfix をインストールして SMTP サーバーを構築します。SMTP は [25/TCP] を使用します。
+[1]	メール不正中継防止に、後述の Dovecot の SASL機能を利用し、送信にも認証が必要なように Postfix を設定します。
+
+sudo apt -y install postfix sasl2-bin
+
+sudo cp /usr/share/postfix/main.cf.dist /etc/postfix/main.cf
+
+sudo vi /etc/postfix/main.cf
+
+# 78行目：コメント解除
+mail_owner = postfix
+# 94行目：コメント解除しホスト名指定
+myhostname = mail.srvcps.co.jp
+# 102行目：コメント解除しドメイン名指定
+mydomain = srvcps.co.jp
+# 123行目：コメント解除
+myorigin = $mydomain
+# 137行目：コメント解除
+inet_interfaces = all
+# 185行目：コメント解除
+mydestination = $myhostname, localhost.$mydomain, localhost, $mydomain
+# 228行目：コメント解除
+local_recipient_maps = unix:passwd.byname $alias_maps
+# 270行目：コメント解除
+mynetworks_style = subnet
+# 287行目：自ネットワーク追記
+mynetworks = 127.0.0.0/8, 10.0.0.0/24
+# 407行目：コメント解除
+alias_maps = hash:/etc/aliases
+# 418行目：コメント解除
+alias_database = hash:/etc/aliases
+# 440行目：コメント解除
+home_mailbox = Maildir/
+# 576行目：コメントにしてその下に追記
+#smtpd_banner = $myhostname ESMTP $mail_name (Ubuntu)
+smtpd_banner = $myhostname ESMTP
+# 650行目：追記
+sendmail_path = /usr/sbin/postfix
+# 655行目：追記
+newaliases_path = /usr/bin/newaliases
+# 660行目：追記
+mailq_path = /usr/bin/mailq
+# 666行目：追記
+setgid_group = postdrop
+# 670行目：コメント化
+#html_directory =
+# 674行目：コメント化
+#manpage_directory =
+# 679行目：コメント化
+#sample_directory =
+# 683行目：コメント化
+#readme_directory =
+# 684行目：IPv6 もリスンする場合は [all] に変更
+inet_protocols = ipv4
+# 最終行へ追記
+# 例として 送受信メールサイズを 10M に制限
+message_size_limit = 10485760
+# 例として メールボックスサイズを 1G に制限
+mailbox_size_limit = 1073741824
+
+# SMTP-Auth 設定
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = private/auth
+smtpd_sasl_auth_enable = yes
+smtpd_sasl_security_options = noanonymous
+smtpd_sasl_local_domain = $myhostname
+smtpd_recipient_restrictions = permit_mynetworks, permit_auth_destination, permit_sasl_authenticated, reject 
+
+sudo newaliases
+sudo systemctl restart postfix
+
+===================================================
+Mail サーバー : Dovecot インストール
+Dovecot をインストールして POP/IMAP サーバーを構築します。POP は [110/TCP], IMAP は [143/TCP] を使用します。
+[1]	Postfix に SASL 機能が提供できるように Dovecot を設定します。
+
+sudo apt -y install dovecot-core dovecot-pop3d dovecot-imapd
+
+sudo vi /etc/dovecot/dovecot.conf
+# 30行目：コメント解除
+listen = *, ::
+
+sudo vi /etc/dovecot/conf.d/10-auth.conf
+# 10行目：コメント解除して変更 (プレーンテキスト認証も許可)
+disable_plaintext_auth = no
+# 100行目：追記
+auth_mechanisms = plain login
+
+sudo vi /etc/dovecot/conf.d/10-mail.conf
+# 30行目：Maildir 形式に変更
+mail_location = maildir:~/Maildir
+
+sudo vi /etc/dovecot/conf.d/10-master.conf
+# 107-109行目：コメント解除して追記
+  # Postfix smtp-auth
+  unix_listener /var/spool/postfix/private/auth {
+    mode = 0666
+    user = postfix
+    group = postfix
+  }
+
+sudo systemctl restart dovecot
+
+===================================================
+Mail サーバー : メールユーザーアカウント登録2020/05/19
+ 	
+メール用のユーザーアカウントを登録します。
+当例は OS 上のユーザーアカウントでメールを利用する場合の設定です。
+事前に Postfix の基本設定, および Dovecot の基本設定は実施済みを前提とします。
+[1]	OS 上のユーザーアカウントでメールを利用する場合は、追加の設定は不要で OS ユーザーを登録するのみです。
+
+# メールクライアントインストール
+sudo apt -y install mailutils
+
+# メールボックスは Maildir を参照するよう設定
+sudo vi /etc/profile.d/mail.sh
+export MAIL=$HOME/Maildir/
+
+# OSユーザー [mailuser] を追加
+sudo adduser mailuser
+
+[2]	追加したユーザーアカウントでログインし、メールの送信テストをします。
+# 自身にテストメール送信 [mail (ユーザー名)@(ホスト名)]
+su - mailuser
+mail mailuser@mail.srvcps.co.jp
+# Cc の宛先
+Cc:
+# 件名
+Subject: Test Mail#1
+# 本文
+This is the first mail.
+
+# 本文を終了する場合は Ctrl + D キー
+
+# 受信メール参照
+mailuser@mail:~$ mail
+"/home/mailuser/Maildir/": 1 message 1 new
+>N   1 mailuser                               13/442   Test Mail#1
+
+# 表示したいメールの番号を入力
+? 1
+Return-Path: <mailuser@mail.srvcps.co.jp>
+X-Original-To: mailuser@localhost
+Delivered-To: mailuser@localhost
+Received: by mail.srvcps.co.jp (Postfix, from userid 1000)
+        id 7A845403D2; Mon, 18 May 2020 20:35:41 -0600 (CST)
+To: <mailuser@localhost>
+Subject: Test Mail#1
+X-Mailer: mail (GNU Mailutils 3.7)
+Message-Id: <20200519023541.7A845403D2@mail.srvcps.co.jp>
+Date: Mon, 18 May 2020 20:35:41 -0600 (CST)
+From: mailuser <mailuser@mail.srvcps.co.jp>
+
+This is the first mail.
+
+# 終了する場合は [q]
+? q
+Saved 1 message in /home/mailuser/mbox
+Held 0 messages in /home/mailuser/Maildir/
+
+===================================================
+メール用のユーザーアカウントを登録します。
+当例では OS ユーザーは利用せず、メール専用の仮想メールユーザーを作成して利用する場合の設定です。
+[1]	
+Postfix の基本設定, および Dovecot の基本設定を実施しておきます。
+[2]	Postfix と Dovecot へ仮想メールユーザー用の追加設定を実施します。
+# 仮想メールボックス管理ユーザー作成
+root@mail:~# adduser --uid 20000 --disabled-password --disabled-login vmail
+root@mail:~# vi /etc/postfix/main.cf
+# 185行目：コメントにする
+#mydestination = $myhostname, localhost.$mydomain, localhost, $mydomain
+# 最終行に追記
+# 複数ドメインを設定する場合はカンマ または スペース区切りで指定
+virtual_mailbox_domains = srv.world, virtual.host
+virtual_mailbox_base = /home/vmail
+virtual_mailbox_maps = hash:/etc/postfix/virtual-mailbox
+virtual_uid_maps = static:20000
+virtual_gid_maps = static:20000
+
+root@mail:~# vi /etc/dovecot/conf.d/10-auth.conf
+# 100行目：追記
+auth_mechanisms = cram-md5 plain login
+# 122行目：コメント化
+#!include auth-system.conf.ext
+# 125行目：コメント解除
+!include auth-passwdfile.conf.ext
+# 128行目：コメント解除
+!include auth-static.conf.ext
+root@mail:~# vi /etc/dovecot/conf.d/auth-passwdfile.conf.ext
+# 8行目：変更
+passdb {
+  driver = passwd-file
+  args = scheme=CRAM-MD5 username_format=%u /etc/dovecot/users
+
+# 11行目：[userdb] セクション全てコメント化
+#userdb {
+#  driver = passwd-file
+#  args = username_format=%u /etc/dovecot/users
+#.....
+#.....
+#}
+
+root@mail:~# vi /etc/dovecot/conf.d/auth-static.conf.ext
+# 21-24行目：コメント解除して変更
+userdb {
+  driver = static
+  args = uid=vmail gid=vmail home=/home/vmail/%d/%n
+}
+
+root@mail:~# vi /etc/dovecot/conf.d/10-mail.conf
+# 30行目：変更
+mail_location = maildir:/home/vmail/%d/%n/Maildir
+root@mail:~# systemctl restart postfix dovecot
+[3]	仮想ユーザーアカウントを登録します。
+root@mail:~# vi /etc/postfix/virtual-mailbox
+# 新規登録
+# [ユーザーアカウント] [メールボックス]
+ubuntu@srv.world   srv.world/ubuntu/Maildir/
+debian@virtual.host   virtual.host/debian/Maildir/
+
+root@mail:~# postmap /etc/postfix/virtual-mailbox
+# 暗号化パスワード生成
+root@mail:~# doveadm pw -s CRAM-MD5
+Enter new password:
+Retype new password:
+{CRAM-MD5}xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+root@mail:~# vi /etc/dovecot/users
+# 新規登録
+# [ユーザーアカウント] [パスワード]
+ubuntu@srv.world:{CRAM-MD5}xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+debian@virtual.host:{CRAM-MD5}xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+===================================================
+Mail サーバー : SSL/TLS の設定
+暗号化通信ができるよう SSL/TLS の設定をします。
+SMTP-Submission は [587/TCP], SMTPS は [465/TCP], POP3S は [995/TCP], IMAPS は [993/TCP] を使用します。
+[1]	
+こちらを参考に SSL 証明書を取得しておきます。
+https://www.server-world.info/query?os=Ubuntu_20.04&p=ssl&f=2
+    [1]	証明書を取得するためのクライアントツールをインストールします。
+    sudo apt -y install certbot
+
+    [2]	証明書を取得します。
+    # [--webroot] 指定で稼働中 Web サーバーの公開ディレクトリ配下を認証用の一時領域に使用
+    # -w [ドキュメントルート] -d [証明書を取得したい FQDN]
+    # FQDN (Fully Qualified Domain Name) : ホスト名.ドメイン名を省略なしで表記
+    # ドキュメントルートはバーチャルホストで複数のホスト定義がある場合、該当するホスト定義のものを指定
+    # 証明書を取得したい FQDN が複数ある場合は、-d [証明書を取得したい FQDN] を複数指定
+    # 例 : srvcps.co.jp/dlp.srvcps.co.jp の二つについて取得する場合
+    # ⇒ [-d srvcps.co.jp -d dlp.srvcps.co.jp]
+    sudo certbot certonly --webroot -w /var/www/html -d srvcps.co.jp
+
+    # 初回のみメールアドレスの登録と利用条件への同意が必要
+    # 受信可能なメールアドレスを指定
+    Enter email address (used for urgent notices and lost key recovery)
+
+    root@mail.srvcps.co.jp 
+
+    <  OK  >           <Cancel>
+
+    # 利用条件に同意する
+    Please read the Terms of Service at
+        https://letsencrypt.org/documents/LE-SA-v1.2-November-15-2017.pdf.
+        You must agree in order to register with the ACME server at       
+        https://acme-v01.api.letsencrypt.org/directory                    
+
+    <Agree >           <Cancel>
+
+    IMPORTANT NOTES:
+    - Congratulations! Your certificate and chain have been saved at
+    /etc/letsencrypt/live/srvcps.co.jp/fullchain.pem. Your cert will
+    expire on 2020-07-23. To obtain a new version of the certificate in
+    the future, simply run Let's Encrypt again.
+    - If you like Let's Encrypt, please consider supporting our work by:
+
+    Donating to ISRG / Let's Encrypt:   https://letsencrypt.org/donate
+    Donating to EFF:                    https://eff.org/donate-le
+
+    # [Congratulations] と表示さえれば成功
+    # メッセージ中に記載の通り [/etc/letsencrypt/live/(FQDN)/] 配下に証明書が取得されている
+
+    # cert.pem       ⇒ SSLサーバー証明書(公開鍵含む)
+    # chain.pem      ⇒ 中間証明書
+    # fullchain.pem  ⇒ cert.pem と chain.pem が結合されたファイル
+    # privkey.pem    ⇒ 公開鍵に対する秘密鍵
+
+    [3]	作業を実施するサーバーで Webサーバーが稼働していない場合でも、ツールの簡易 Webサーバー機能を使用して証明書の取得が可能です。 
+        いずれにしろ、インターネット側から当作業を実施するサーバーの 80 ポート宛てにアクセス可能であることは前提となります。
+    # [--standalone] 指定で 簡易 Webサーバー機能を使用
+    # -d [証明書を取得したい FQDN]
+    # FQDN (Fully Qualified Domain Name) : ホスト名.ドメイン名を省略なしで表記
+    # 証明書を取得したい FQDN が複数ある場合は、-d [証明書を取得したい FQDN] を複数指定
+    # 例 : srv.world/dlp.srv.world について取得する場合 ⇒ -d srv.world -d dlp.srv.world
+    sudo certbot certonly --standalone -d dlp.srv.world
+
+    IMPORTANT NOTES:
+    - Congratulations! Your certificate and chain have been saved at:
+    /etc/letsencrypt/live/dlp.srv.world/fullchain.pem
+    Your key file has been saved at:
+    /etc/letsencrypt/live/dlp.srv.world/privkey.pem
+    Your cert will expire on 2020-07-23. To obtain a new or tweaked
+    version of this certificate in the future, simply run certbot
+    again. To non-interactively renew *all* of your certificates, run
+    "certbot renew"
+    - Your account credentials have been saved in your Certbot
+    configuration directory at /etc/letsencrypt. You should make a
+    secure backup of this folder now. This configuration directory will
+    also contain certificates and private keys obtained by Certbot so
+    making regular backups of this folder is ideal.
+    - If you like Certbot, please consider supporting our work by:
+
+    Donating to ISRG / Let's Encrypt:   https://letsencrypt.org/donate
+    Donating to EFF:                    https://eff.org/donate-le
+
+    [4]	取得済みの証明書を更新する場合は以下のように実行します。
+    # 有効期限が 30日未満の証明書を全て更新
+    # 有効期限の残り日数に関わらず更新したい場合は [--force-renewal] を合わせて指定
+    sudo certbot renew
+
+[2]	Postfix と Dovecot の設定です。
+sudo vi /etc/postfix/main.cf
+# 最終行に追記
+smtpd_use_tls = yes
+smtp_tls_mandatory_protocols = !SSLv2, !SSLv3
+smtpd_tls_mandatory_protocols = !SSLv2, !SSLv3
+smtpd_tls_cert_file = /etc/letsencrypt/live/mail.srvcps.co.jp/fullchain.pem
+smtpd_tls_key_file = /etc/letsencrypt/live/mail.srvcps.co.jp/privkey.pem
+smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
+
+sudo vi /etc/postfix/master.cf
+# 17-20行目 : コメント解除
+submission inet n       -       y       -       -       smtpd
+  -o syslog_name=postfix/submission
+#  -o smtpd_tls_security_level=encrypt
+  -o smtpd_sasl_auth_enable=yes
+
+# 29-32行目 : コメント解除
+smtps     inet  n       -       y       -       -       smtpd
+  -o syslog_name=postfix/smtps
+  -o smtpd_tls_wrappermode=yes
+  -o smtpd_sasl_auth_enable=yes
+
+sudo vi /etc/dovecot/conf.d/10-ssl.conf
+# 6行目：変更
+ssl = yes
+# 12,13行目：コメント解除して証明書/鍵ファイル指定
+ssl_cert = </etc/letsencrypt/live/mail.srvcps.co.jp/fullchain.pem
+ssl_key = </etc/letsencrypt/live/mail.srvcps.co.jp/privkey.pem
+
+sudo systemctl restart postfix dovecot
+
+
+===================================================
+
+sudo apt-get -y install postfix postfix-mysql postfix-doc mariadb-client mariadb-server openssl dovecot-imapd dovecot-pop3d dovecot-mysql dovecot-sieve 
+
+sudo mysql_secure_installation
+
+
+Install Apache, PHP, phpMyAdmin, FCGI, SuExec, Pear
+
+sudo apt-get -y install apache2 apache2-doc apache2-utils libapache2-mod-php php7.4 php7.4-common php7.4-gd php7.4-mysql php7.4-imap phpmyadmin php7.4-cli php7.4-cgi libapache2-mod-fcgid apache2-suexec-pristine php-pear libruby libapache2-mod-python php7.4-curl php7.4-intl php7.4-pspell php7.4-sqlite3 php7.4-tidy php7.4-xmlrpc php7.4-xsl memcached php-memcache php-imagick php7.4-zip php7.4-mbstring php-soap php7.4-soap php7.4-opcache php-apcu php7.4-fpm
+
+You will see the following question:
+
+Web server to reconfigure automatically: <-- apache2
+
+Configure database for phpmyadmin with dbconfig-common? <-- Yes
+
+MySQL application password for phpmyadmin: <-- Press enter
+
+Then run the following command to enable the Apache modules suexec, rewrite, ssl, actions, and include (plus dav, dav_fs, and auth_digest if you want to use WebDAV):
+
+sudo a2enmod suexec rewrite ssl actions include cgi alias proxy_fcgi
+sudo a2enmod dav_fs dav auth_digest headers
+
+nano /etc/apache2/conf-available/httpoxy.conf
+Paste this content into the file:
+
+<IfModule mod_headers.c>
+    RequestHeader unset Proxy early
+</IfModule>
+Enable the config file by running:
+
+a2enconf httpoxy
+Restart Apache afterward:
+
+service apache2 restart
+If you want to host Ruby files with the extension .rb on your websites created through ISPConfig, you must comment out the line application/x-ruby rb in /etc/mime.types:
+
+nano /etc/mime.types
+[...]
+#application/x-ruby                             rb
+[...]
+(This is needed only for .rb files; Ruby files with the extension .rbx work out of the box.)
+
+service apache2 restart
+
+Install Let's Encrypt
+ISPConfig 3.2 has built-in support for the free SSL Certificate Authority Let's encrypt. The Let's Encrypt function allows you to create free SSL Certificates for your website in ISPConfig.
+
+Now we will add support for Let's encrypt.
+
+apt-get install certbot
 
